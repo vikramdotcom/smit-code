@@ -1,0 +1,28 @@
+# Assignment 2: Housing Price Prediction
+
+Dear Students,
+
+Aap sab ko **Housing Price Dataset** assign ki ja rahi hai.
+
+### Task:
+
+Is dataset par **Linear Regression** apply karni hai aur **Price** ko predict karna hai.
+
+**Target Column (Prediction):**
+
+* `Price`
+
+Baaki numeric columns ko features ke taur par use karein.
+
+### Submission Requirements:
+
+* Complete Jupyter Notebook (.ipynb)
+* Dataset
+* Proper comments in code
+* Model Evaluation (MAE, MSE, RMSE, R² Score)
+* Prediction Results
+
+**Submission Deadline:**
+**29 July 2026 (29/07/2026)**
+
+Apna complete project GitHub par upload karein aur GitHub repository ka link submit karein.

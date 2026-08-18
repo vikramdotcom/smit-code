@@ -1,0 +1,107 @@
+Customer Fraud Detection – Binary Classification
+
+Dear Students,
+
+Aap sab ko **Customer Fraud Detection Dataset** assign ki ja rahi hai.
+
+### Task:
+
+Is dataset par **Machine Learning Binary Classification** perform karni hai. Aapka goal customer ke available features ki madad se predict karna hai ke customer/record **fraudulent hai ya nahi**.
+
+### Target Column (Prediction):
+
+* `is_fraudulent`
+
+### Target Classes:
+
+* `0` = Not Fraudulent
+* `1` = Fraudulent
+
+Baaki relevant columns ko features ke taur par use karein.
+
+**Important:** `customer_id` sirf ek identifier hai, isliye ise Machine Learning model mein feature ke taur par use nahi karna.
+
+### Requirements:
+
+1. Dataset ko properly load karein aur **EDA (Exploratory Data Analysis)** perform karein.
+2. Dataset mein:
+
+   * Missing values
+   * Duplicate values
+   * Outliers
+   * Target class distribution
+     check karein.
+3. Features (`X`) aur target (`y`) ko properly separate karein.
+4. Categorical columns ko suitable **Encoding Technique** ke through convert karein.
+5. Date-related column `customer_since` ko zarurat ke mutabiq suitable format/features mein convert karein.
+6. Dataset ko **Training aur Testing data** mein divide karein.
+7. Agar target classes imbalanced hon to **SMOTE** ya koi suitable balancing technique apply karein.
+8. Suitable **Feature Scaling** technique apply karein, jaise:
+
+   * StandardScaler
+   * MinMaxScaler
+
+   Scaling technique khud select karein aur explain karein ke aapne woh technique kyun choose ki.
+9. Neeche diye gaye **Classification Algorithms lazmi apply karein**:
+
+   * Decision Tree
+   * Random Forest
+   * XGBoost
+
+   Iske ilawa aap koi aur suitable classification algorithm bhi apply kar sakte hain.
+10. Har model ki performance evaluate karein using:
+
+* Accuracy
+* Precision
+* Recall
+* F1-Score
+* Confusion Matrix
+* Classification Report
+
+11. Sabhi models ki performance ko compare karein.
+12. **Best-performing model identify karein**.
+13. Clearly mention karein:
+
+* Kaunsi encoding technique use ki aur kyun.
+* Kaunsi scaling technique use ki aur kyun.
+* SMOTE/balancing technique use ki ya nahi aur kyun.
+* Decision Tree ki accuracy/performance.
+* Random Forest ki accuracy/performance.
+* XGBoost ki accuracy/performance.
+* Kaunsa model best perform kiya.
+* Best model ki final performance kya rahi.
+
+### Important:
+
+Aapko sirf models apply nahi karne. Har preprocessing step aur model selection ko **properly explain** karna hai.
+
+Especially ye explain karna zaroori hai ke:
+
+**Data → Preprocessing → Encoding → Train/Test Split → Scaling → SMOTE (if required) → Models → Evaluation → Model Comparison → Best Model**
+
+### Submission Requirements:
+
+* Complete Jupyter Notebook (`.ipynb`)
+* Dataset
+* Proper comments in code
+* EDA and visualizations
+* Data preprocessing
+* Encoding
+* Outlier handling
+* Feature Scaling
+* SMOTE / Class Balancing (if required)
+* Decision Tree
+* Random Forest
+* XGBoost
+* Model Evaluation
+* Model Comparison
+* Confusion Matrix
+* Classification Report
+* Final Prediction Results
+* Best Model explanation
+
+### Submission Deadline:
+
+**16 August 2026 (16/08/2026)**
+
+Apna complete project **GitHub** par upload karein aur **GitHub repository ka link** submit karein.

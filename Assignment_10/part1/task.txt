@@ -1,0 +1,121 @@
+# Assignment 1: Student Performance Prediction Using ANN
+
+## Objective
+
+Aap ko **Student Performance Dataset** diya ja raha hai. Is assignment mein aap ne **Artificial Neural Network (ANN)** ka use karte hue students ki performance predict karni hai.
+
+**Dataset:** 300K Student Performance Prediction Dataset
+**Dataset Link:** https://www.kaggle.com/datasets/rhythmghai/300k-student-performance-prediction-dataset
+
+## Task
+
+Dataset ko properly preprocess karne ke baad ANN model develop karein aur given output/target column ki prediction karein.
+
+### Target / Output Column
+
+**Output Column:** `Final Grade`
+
+Aap ke input features (`X`) mein target column ko include nahi karna. Sirf relevant input features ko ANN mein dena hai.
+
+## Requirements
+
+### 1. Data Preprocessing
+
+* Dataset load karein.
+* Dataset ka basic EDA perform karein.
+* Missing values check karein aur properly handle karein.
+* Duplicate values check karein.
+* Categorical data agar present ho to appropriate encoding perform karein.
+* Features (`X`) aur target (`y`) separate karein.
+* Dataset ko training aur testing data mein divide karein.
+* Numerical features par **Feature Scaling** apply karein.
+
+### 2. ANN Model
+
+ANN model TensorFlow/Keras ka use kar ke develop karein.
+
+Aap ko different ANN architectures experiment karni hain, for example:
+
+* Different number of hidden layers
+* Different number of neurons
+* Different activation functions
+* Different optimizers
+* Different epochs
+* Different batch sizes
+
+### 3. Activation Functions
+
+Kam az kam **3 different activation functions/configurations** experiment karein, for example:
+
+* ReLU
+* Tanh
+* Sigmoid
+
+Har configuration ka result compare karein.
+
+### 4. Optimizers
+
+Kam az kam **3 different optimizers** try karein:
+
+* Adam
+* SGD
+* RMSprop
+
+Har optimizer ke performance results compare karein.
+
+### 5. Model Training
+
+Har model ko train karein aur training ke dauran:
+
+* Loss
+* Validation Loss
+* Performance/Metrics
+
+observe karein.
+
+Different epochs try karein, for example:
+
+* 20
+* 50
+* 100
+
+### 6. Prediction
+
+Best performing ANN model select karne ke baad:
+
+* Test data par prediction perform karein.
+* Kuch sample predictions display karein.
+* Actual value aur predicted value compare karein.
+
+### 7. Model Comparison
+
+Ek comparison table banayein:
+
+| Model   | Activation | Optimizer | Epochs | Performance |
+| ------- | ---------- | --------- | ------ | ----------- |
+| Model 1 | ReLU       | Adam      | 50     | ...         |
+| Model 2 | Tanh       | SGD       | 50     | ...         |
+| Model 3 | ReLU       | RMSprop   | 100    | ...         |
+
+Aakhir mein explain karein ke **kaunsa ANN configuration best perform karta hai aur kyun.**
+
+## Important
+
+Sirf ek ANN model bana kar assignment complete nahi hoga. Aap ko **different activation functions, optimizers aur ANN architectures experiment** karni hain aur best performing model identify karna hai.
+
+**Goal:** Model ki performance ko jitna possible ho improve karein, lekin overfitting se bhi bachna hai.
+
+## Submission
+
+Submit the following:
+
+1. Jupyter Notebook / Google Colab file
+2. Complete preprocessing code
+3. ANN model code
+4. Different experiments ke results
+5. Final predictions
+6. Model comparison
+7. Short conclusion
+
+**Kaggle Dataset:**
+https://www.kaggle.com/datasets/rhythmghai/300k-student-performance-prediction-dataset

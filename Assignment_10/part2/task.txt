@@ -1,0 +1,157 @@
+# Assignment 2: Credit Card Fraud Detection Using ANN
+
+## Objective
+
+Aap ko **Credit Card Fraud Dataset** diya ja raha hai. Is assignment mein aap ne **Artificial Neural Network (ANN)** ka use karte hue transactions ko **fraudulent ya legitimate** classify karna hai.
+
+**Dataset:** Credit Card Fraud Dataset
+**Dataset Link:** https://www.kaggle.com/datasets/quant101/cc-fraud-dataset
+
+## Task
+
+Dataset ko preprocess karne ke baad ANN classification model develop karein aur transaction ki fraud/non-fraud prediction karein.
+
+### Target / Output Column
+
+**Output Column:** `Class`
+
+Generally:
+
+* `0` → Legitimate / Normal Transaction
+* `1` → Fraudulent Transaction
+
+`Class` ko input features mein include nahi karna. Ye aapka **target/output (`y`)** hoga.
+
+## Requirements
+
+### 1. Data Preprocessing
+
+* Dataset load karein.
+* Dataset ka EDA perform karein.
+* Missing values check karein.
+* Duplicate values check karein.
+* Features (`X`) aur target (`y`) separate karein.
+* `Class` ki distribution check karein.
+* Dataset **imbalanced** hai, is liye imbalance ko properly handle karein.
+* Training aur testing data mein split karein.
+* Numerical features par **Feature Scaling** apply karein.
+
+### 2. Imbalanced Data Handling
+
+Imbalanced dataset ko handle karne ke liye appropriate technique use karein.
+
+Aap in mein se suitable technique experiment kar sakte hain:
+
+* Class Weights
+* Undersampling
+* Oversampling
+* SMOTE
+
+**Note:** Test data ko artificially balance nahi karna. Test set ko realistic distribution ke sath evaluate karna hai.
+
+### 3. ANN Model
+
+TensorFlow/Keras ka use kar ke ANN classification model develop karein.
+
+Different architectures experiment karein:
+
+* Different hidden layers
+* Different neurons
+* Different activation functions
+* Different optimizers
+* Different epochs
+* Different batch sizes
+
+### 4. Activation Functions
+
+Kam az kam **3 different activation configurations** try karein, for example:
+
+* ReLU
+* Tanh
+* Sigmoid
+
+Output layer mein binary classification ke liye appropriate activation function use karein.
+
+### 5. Optimizers
+
+Kam az kam **3 optimizers** experiment karein:
+
+* Adam
+* SGD
+* RMSprop
+
+Har optimizer ka result compare karein.
+
+### 6. Model Training
+
+Different epochs try karein, for example:
+
+* 20
+* 50
+* 100
+
+Training ke waqt:
+
+* Training Loss
+* Validation Loss
+* Performance
+
+observe karein.
+
+### 7. Evaluation
+
+Fraud detection mein sirf **Accuracy** par depend nahi karna.
+
+Neeche diye gaye metrics calculate karein:
+
+* Accuracy
+* Precision
+* Recall
+* F1-Score
+* Confusion Matrix
+
+Specially **Recall** ko carefully analyze karein, kyun ke fraud transactions ko correctly detect karna important hai.
+
+### 8. Prediction
+
+Best ANN model select karne ke baad:
+
+* Test dataset par predictions generate karein.
+* Kuch sample transactions ki actual aur predicted classes display karein.
+* `0` aur `1` predictions ko clearly explain karein.
+
+### 9. Model Comparison
+
+Different experiments ka comparison banayein:
+
+| Model   | Activation | Optimizer | Epochs | Accuracy | Precision | Recall |  F1 |
+| ------- | ---------- | --------- | -----: | -------: | --------: | -----: | --: |
+| Model 1 | ReLU       | Adam      |     50 |      ... |       ... |    ... | ... |
+| Model 2 | Tanh       | SGD       |     50 |      ... |       ... |    ... | ... |
+| Model 3 | ReLU       | RMSprop   |    100 |      ... |       ... |    ... | ... |
+
+Aakhir mein identify karein ke **kaunsa model best perform karta hai aur kyun.**
+
+## Important
+
+Sirf ek ANN model train karna sufficient nahi hai. Aap ko **multiple activation functions, optimizers, architectures aur epochs** ke sath experiments karne hain.
+
+**Important:** Fraud dataset imbalanced hai, is liye sirf high accuracy ko successful model na samjhein. Precision, Recall aur F1-Score ko bhi consider karein.
+
+## Submission
+
+Submit the following:
+
+1. Jupyter Notebook / Google Colab file
+2. Complete preprocessing code
+3. Imbalanced data handling technique
+4. ANN model code
+5. Different experiments
+6. Evaluation metrics
+7. Confusion Matrix
+8. Final predictions
+9. Model comparison
+10. Short conclusion
+
+**Kaggle Dataset:**
+https://www.kaggle.com/datasets/quant101/cc-fraud-dataset

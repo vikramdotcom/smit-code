@@ -1,38 +1,34 @@
-# Assignment 10B: Credit Card Fraud Detection with ANN
+# Assignment 10B: Spotting Credit Card Fraud with a Neural Network
 
-## Project Overview
+## About the Project
 
-This project detects fraudulent credit-card transactions with an Artificial Neural Network. It uses a complete workflow covering dataset download, EDA, preprocessing, imbalance-aware training, model experimentation, and evaluation.
+An end-to-end fraud-detection pipeline built around an Artificial Neural Network. It walks through downloading the dataset, exploring it, preprocessing, training with class weights to handle imbalance, running several model variants, and judging the results.
 
-## Tech Stack
+## Environment & Libraries
 
 - Python 3
 - Jupyter Notebook
-- Pandas
-- NumPy
-- Matplotlib
-- Seaborn
+- Pandas / NumPy
+- Matplotlib / Seaborn
 - scikit-learn
-- TensorFlow
-- Keras
+- TensorFlow / Keras
 - KaggleHub
 
-## Techniques Used
+## Workflow Highlights
 
-- Dataset download with KaggleHub
-- Duplicate removal and data-quality checks
-- Stratified train-test split
-- StandardScaler fitted only on training data
-- Class weights for severe class imbalance
-- Dense ANN architectures
-- Activation-function and optimizer comparison
-- Confusion matrix and classification report
-- Accuracy, precision, recall, and F1-score evaluation
+- Pull the Kaggle dataset with KaggleHub
+- Remove duplicates and run quality checks
+- Stratified train/test split that keeps class balance intact
+- StandardScaler fit on the training split only
+- Class weights to counter heavy imbalance
+- Dense ANN layouts with varied activations and optimizers
+- Confusion matrix and full classification report
+- Accuracy, precision, recall, and F1 scoring
 
-## Skills Practiced
+## Key Takeaways
 
-- Building a fraud-detection deep-learning pipeline
-- Avoiding preprocessing data leakage
-- Handling highly imbalanced classification data
-- Prioritizing recall in fraud detection
-- Comparing and interpreting ANN experiments
+- Build a complete fraud-detection learning pipeline
+- Keep preprocessing free of data leakage
+- Work with severely skewed classification data
+- Treat recall as the priority for catching fraud
+- Compare and interpret the ANN experiments

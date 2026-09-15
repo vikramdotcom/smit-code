@@ -1,38 +1,35 @@
-# Assignment 10A: Student Performance with Deep Learning
+# Assignment 10A: Predicting Student Final Grades with Neural Networks
 
-## Project Overview
+## About the Project
 
-This project predicts the `final_grade` using dense Artificial Neural Networks. It compares different activation functions and optimizers on student-performance data.
+A deep-learning experiment that forecasts the `final_grade` column from the 300K student-performance dataset. Dense feed-forward neural networks are built and tuned, comparing several activation functions and optimizers to find the strongest combination.
 
-## Tech Stack
+## Environment & Libraries
 
 - Python 3
 - Jupyter Notebook
-- Pandas
-- NumPy
-- Matplotlib
-- Seaborn
+- Pandas / NumPy
+- Matplotlib / Seaborn
 - scikit-learn
-- TensorFlow
-- Keras
+- TensorFlow / Keras
 
-## Techniques Used
+## Workflow Highlights
 
-- Data inspection and duplicate checking
-- Encoding categorical columns
-- Feature-target separation
-- Sampling a large dataset for experimentation
-- Train-test split
-- StandardScaler feature scaling
-- Dense feed-forward neural networks
-- ReLU and Tanh activation functions
-- Adam, SGD, and RMSprop optimizers
-- MSE loss with MAE, RMSE, and R² evaluation
+- Inspect the data and strip out duplicate rows
+- Encode all categorical columns
+- Split features from the target label
+- Subsample the large dataset to speed up testing
+- Split into train/test sets
+- Standardize numeric inputs with StandardScaler
+- Construct dense neural-net architectures
+- Evaluate ReLU and Tanh activations
+- Benchmark Adam, SGD, and RMSprop optimizers
+- Report MSE loss alongside MAE, RMSE, and R²
 
-## Skills Practiced
+## Key Takeaways
 
-- Preparing tabular data for deep learning
-- Designing sequential neural networks
-- Comparing training configurations
-- Reading loss and prediction metrics
-- Understanding optimizer and activation-function choices
+- Get tabular data ready for a neural network
+- Experiment with sequential model layouts
+- Compare how different settings train
+- Read loss curves and prediction metrics
+- Reason about optimizer and activation choices

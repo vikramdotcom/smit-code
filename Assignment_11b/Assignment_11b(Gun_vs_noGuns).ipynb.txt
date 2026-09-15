@@ -1,0 +1,318 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "gpuType": "T4"
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    },
+    "accelerator": "GPU"
+  },
+  "cells": [
+    {
+      "cell_type": "code",
+      "source": [
+        "import kagglehub\n",
+        "\n",
+        "# Download latest version\n",
+        "path1 = kagglehub.dataset_download(\"atulyakumar98/gundetection\")\n",
+        "\n",
+        "# print(\"Path to dataset files:\", path)"
+      ],
+      "metadata": {
+        "id": "Ii2nynYzryHo"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import os\n",
+        "import glob\n",
+        "import numpy as np\n",
+        "from sklearn.model_selection import train_test_split\n",
+        "import tensorflow as tf\n",
+        "from tensorflow.keras import layers, models\n",
+        "\n",
+        "# 1. Get all image paths\n",
+        "image_paths = sorted(glob.glob(os.path.join(path1, \"*.jpg\")))\n",
+        "\n",
+        "# 2. Extract binary labels (example assumes an empty/missing text file is '0' and a populated text file is '1')\n",
+        "labels = []\n",
+        "for img_p in image_paths:\n",
+        "    txt_p = img_p.replace(\".jpg\", \".txt\")\n",
+        "    if os.path.exists(txt_p) and os.path.getsize(txt_p) > 0:\n",
+        "        labels.append(1)  # Class 1: Gun detected\n",
+        "    else:\n",
+        "        labels.append(0)  # Class 0: No Gun / Background\n",
+        "\n",
+        "labels = np.array(labels, dtype=np.int32)\n",
+        "print(f\"Total images: {len(image_paths)} | Guns: {sum(labels)} | No Guns: {len(labels) - sum(labels)}\")\n"
+      ],
+      "metadata": {
+        "id": "Nddpmhpnr9bj",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "81a926ac-6fee-434e-b13e-d68781852aa7"
+      },
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Total images: 3000 | Guns: 3000 | No Guns: 0\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Split into 80% train and 20% validation/test\n",
+        "train_paths, val_paths, train_labels, val_labels = train_test_split(\n",
+        "    image_paths, labels, test_size=0.2, random_state=42, stratify=labels\n",
+        ")\n"
+      ],
+      "metadata": {
+        "id": "GBs8ftAHEOpe"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "IMG_SIZE = (224, 224)\n",
+        "BATCH_SIZE = 32\n",
+        "\n",
+        "def parse_image(filename, label):\n",
+        "    # Read the file\n",
+        "    image = tf.io.read_file(filename)\n",
+        "    # Decode to jpeg\n",
+        "    image = tf.image.decode_jpeg(image, channels=3)\n",
+        "    # Resize image\n",
+        "    image = tf.image.resize(image, IMG_SIZE)\n",
+        "    # Normalize pixel values to [0, 1]\n",
+        "    image = image / 255.0\n",
+        "    return image, label\n",
+        "\n",
+        "# Create Training Dataset\n",
+        "train_ds = tf.data.Dataset.from_tensor_slices((train_paths, train_labels))\n",
+        "train_ds = train_ds.shuffle(len(train_paths)).map(parse_image).batch(BATCH_SIZE).prefetch(buffer_size=tf.data.AUTOTUNE)\n",
+        "\n",
+        "# Create Validation Dataset\n",
+        "val_ds = tf.data.Dataset.from_tensor_slices((val_paths, val_labels))\n",
+        "val_ds = val_ds.map(parse_image).batch(BATCH_SIZE).prefetch(buffer_size=tf.data.AUTOTUNE)\n"
+      ],
+      "metadata": {
+        "id": "rEgUej3mEekK"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# 1. Build the Architecture\n",
+        "model = models.Sequential([\n",
+        "    layers.Input(shape=(224, 224, 3)),\n",
+        "\n",
+        "    layers.Conv2D(32, (3, 3), activation='relu'),\n",
+        "    layers.MaxPooling2D((2, 2)),\n",
+        "\n",
+        "    layers.Conv2D(64, (3, 3), activation='relu'),\n",
+        "    layers.MaxPooling2D((2, 2)),\n",
+        "\n",
+        "    layers.Conv2D(128, (3, 3), activation='relu'),\n",
+        "    layers.MaxPooling2D((2, 2)),\n",
+        "\n",
+        "    layers.Flatten(),\n",
+        "    layers.Dense(128, activation='relu'),\n",
+        "    layers.Dropout(0.5),\n",
+        "    layers.Dense(1, activation='sigmoid') # Sigmoid output for binary classification\n",
+        "])\n",
+        "\n",
+        "# 2. Compile Model\n",
+        "model.compile(\n",
+        "    optimizer='adam',\n",
+        "    loss='binary_crossentropy',\n",
+        "    metrics=['accuracy']\n",
+        ")\n",
+        "\n",
+        "model.summary()\n",
+        "\n",
+        "# 3. Train Model\n",
+        "history = model.fit(\n",
+        "    train_ds,\n",
+        "    validation_data=val_ds,\n",
+        "    epochs=10\n",
+        ")\n"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 812
+        },
+        "id": "DMj63_YcEiMc",
+        "outputId": "93194eac-8617-4177-d998-3f7f305ba941"
+      },
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "\u001b[1mModel: \"sequential\"\u001b[0m\n"
+            ],
+            "text/html": [
+              "<pre style=\"white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace\"><span style=\"font-weight: bold\">Model: \"sequential\"</span>\n",
+              "</pre>\n"
+            ]
+          },
+          "metadata": {}
+        },
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓\n",
+              "┃\u001b[1m \u001b[0m\u001b[1mLayer (type)                   \u001b[0m\u001b[1m \u001b[0m┃\u001b[1m \u001b[0m\u001b[1mOutput Shape          \u001b[0m\u001b[1m \u001b[0m┃\u001b[1m \u001b[0m\u001b[1m      Param #\u001b[0m\u001b[1m \u001b[0m┃\n",
+              "┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩\n",
+              "│ conv2d (\u001b[38;5;33mConv2D\u001b[0m)                 │ (\u001b[38;5;45mNone\u001b[0m, \u001b[38;5;34m222\u001b[0m, \u001b[38;5;34m222\u001b[0m, \u001b[38;5;34m32\u001b[0m)   │           \u001b[38;5;34m896\u001b[0m │\n",
+              "├─────────────────────────────────┼────────────────────────┼───────────────┤\n",
+              "│ max_pooling2d (\u001b[38;5;33mMaxPooling2D\u001b[0m)    │ (\u001b[38;5;45mNone\u001b[0m, \u001b[38;5;34m111\u001b[0m, \u001b[38;5;34m111\u001b[0m, \u001b[38;5;34m32\u001b[0m)   │             \u001b[38;5;34m0\u001b[0m │\n",
+              "├─────────────────────────────────┼────────────────────────┼───────────────┤\n",
+              "│ conv2d_1 (\u001b[38;5;33mConv2D\u001b[0m)               │ (\u001b[38;5;45mNone\u001b[0m, \u001b[38;5;34m109\u001b[0m, \u001b[38;5;34m109\u001b[0m, \u001b[38;5;34m64\u001b[0m)   │        \u001b[38;5;34m18,496\u001b[0m │\n",
+              "├─────────────────────────────────┼────────────────────────┼───────────────┤\n",
+              "│ max_pooling2d_1 (\u001b[38;5;33mMaxPooling2D\u001b[0m)  │ (\u001b[38;5;45mNone\u001b[0m, \u001b[38;5;34m54\u001b[0m, \u001b[38;5;34m54\u001b[0m, \u001b[38;5;34m64\u001b[0m)     │             \u001b[38;5;34m0\u001b[0m │\n",
+              "├─────────────────────────────────┼────────────────────────┼───────────────┤\n",
+              "│ conv2d_2 (\u001b[38;5;33mConv2D\u001b[0m)               │ (\u001b[38;5;45mNone\u001b[0m, \u001b[38;5;34m52\u001b[0m, \u001b[38;5;34m52\u001b[0m, \u001b[38;5;34m128\u001b[0m)    │        \u001b[38;5;34m73,856\u001b[0m │\n",
+              "├─────────────────────────────────┼────────────────────────┼───────────────┤\n",
+              "│ max_pooling2d_2 (\u001b[38;5;33mMaxPooling2D\u001b[0m)  │ (\u001b[38;5;45mNone\u001b[0m, \u001b[38;5;34m26\u001b[0m, \u001b[38;5;34m26\u001b[0m, \u001b[38;5;34m128\u001b[0m)    │             \u001b[38;5;34m0\u001b[0m │\n",
+              "├─────────────────────────────────┼────────────────────────┼───────────────┤\n",
+              "│ flatten (\u001b[38;5;33mFlatten\u001b[0m)               │ (\u001b[38;5;45mNone\u001b[0m, \u001b[38;5;34m86528\u001b[0m)          │             \u001b[38;5;34m0\u001b[0m │\n",
+              "├─────────────────────────────────┼────────────────────────┼───────────────┤\n",
+              "│ dense (\u001b[38;5;33mDense\u001b[0m)                   │ (\u001b[38;5;45mNone\u001b[0m, \u001b[38;5;34m128\u001b[0m)            │    \u001b[38;5;34m11,075,712\u001b[0m │\n",
+              "├─────────────────────────────────┼────────────────────────┼───────────────┤\n",
+              "│ dropout (\u001b[38;5;33mDropout\u001b[0m)               │ (\u001b[38;5;45mNone\u001b[0m, \u001b[38;5;34m128\u001b[0m)            │             \u001b[38;5;34m0\u001b[0m │\n",
+              "├─────────────────────────────────┼────────────────────────┼───────────────┤\n",
+              "│ dense_1 (\u001b[38;5;33mDense\u001b[0m)                 │ (\u001b[38;5;45mNone\u001b[0m, \u001b[38;5;34m1\u001b[0m)              │           \u001b[38;5;34m129\u001b[0m │\n",
+              "└─────────────────────────────────┴────────────────────────┴───────────────┘\n"
+            ],
+            "text/html": [
+              "<pre style=\"white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace\">┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓\n",
+              "┃<span style=\"font-weight: bold\"> Layer (type)                    </span>┃<span style=\"font-weight: bold\"> Output Shape           </span>┃<span style=\"font-weight: bold\">       Param # </span>┃\n",
+              "┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩\n",
+              "│ conv2d (<span style=\"color: #0087ff; text-decoration-color: #0087ff\">Conv2D</span>)                 │ (<span style=\"color: #00d7ff; text-decoration-color: #00d7ff\">None</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">222</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">222</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">32</span>)   │           <span style=\"color: #00af00; text-decoration-color: #00af00\">896</span> │\n",
+              "├─────────────────────────────────┼────────────────────────┼───────────────┤\n",
+              "│ max_pooling2d (<span style=\"color: #0087ff; text-decoration-color: #0087ff\">MaxPooling2D</span>)    │ (<span style=\"color: #00d7ff; text-decoration-color: #00d7ff\">None</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">111</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">111</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">32</span>)   │             <span style=\"color: #00af00; text-decoration-color: #00af00\">0</span> │\n",
+              "├─────────────────────────────────┼────────────────────────┼───────────────┤\n",
+              "│ conv2d_1 (<span style=\"color: #0087ff; text-decoration-color: #0087ff\">Conv2D</span>)               │ (<span style=\"color: #00d7ff; text-decoration-color: #00d7ff\">None</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">109</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">109</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">64</span>)   │        <span style=\"color: #00af00; text-decoration-color: #00af00\">18,496</span> │\n",
+              "├─────────────────────────────────┼────────────────────────┼───────────────┤\n",
+              "│ max_pooling2d_1 (<span style=\"color: #0087ff; text-decoration-color: #0087ff\">MaxPooling2D</span>)  │ (<span style=\"color: #00d7ff; text-decoration-color: #00d7ff\">None</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">54</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">54</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">64</span>)     │             <span style=\"color: #00af00; text-decoration-color: #00af00\">0</span> │\n",
+              "├─────────────────────────────────┼────────────────────────┼───────────────┤\n",
+              "│ conv2d_2 (<span style=\"color: #0087ff; text-decoration-color: #0087ff\">Conv2D</span>)               │ (<span style=\"color: #00d7ff; text-decoration-color: #00d7ff\">None</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">52</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">52</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">128</span>)    │        <span style=\"color: #00af00; text-decoration-color: #00af00\">73,856</span> │\n",
+              "├─────────────────────────────────┼────────────────────────┼───────────────┤\n",
+              "│ max_pooling2d_2 (<span style=\"color: #0087ff; text-decoration-color: #0087ff\">MaxPooling2D</span>)  │ (<span style=\"color: #00d7ff; text-decoration-color: #00d7ff\">None</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">26</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">26</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">128</span>)    │             <span style=\"color: #00af00; text-decoration-color: #00af00\">0</span> │\n",
+              "├─────────────────────────────────┼────────────────────────┼───────────────┤\n",
+              "│ flatten (<span style=\"color: #0087ff; text-decoration-color: #0087ff\">Flatten</span>)               │ (<span style=\"color: #00d7ff; text-decoration-color: #00d7ff\">None</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">86528</span>)          │             <span style=\"color: #00af00; text-decoration-color: #00af00\">0</span> │\n",
+              "├─────────────────────────────────┼────────────────────────┼───────────────┤\n",
+              "│ dense (<span style=\"color: #0087ff; text-decoration-color: #0087ff\">Dense</span>)                   │ (<span style=\"color: #00d7ff; text-decoration-color: #00d7ff\">None</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">128</span>)            │    <span style=\"color: #00af00; text-decoration-color: #00af00\">11,075,712</span> │\n",
+              "├─────────────────────────────────┼────────────────────────┼───────────────┤\n",
+              "│ dropout (<span style=\"color: #0087ff; text-decoration-color: #0087ff\">Dropout</span>)               │ (<span style=\"color: #00d7ff; text-decoration-color: #00d7ff\">None</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">128</span>)            │             <span style=\"color: #00af00; text-decoration-color: #00af00\">0</span> │\n",
+              "├─────────────────────────────────┼────────────────────────┼───────────────┤\n",
+              "│ dense_1 (<span style=\"color: #0087ff; text-decoration-color: #0087ff\">Dense</span>)                 │ (<span style=\"color: #00d7ff; text-decoration-color: #00d7ff\">None</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">1</span>)              │           <span style=\"color: #00af00; text-decoration-color: #00af00\">129</span> │\n",
+              "└─────────────────────────────────┴────────────────────────┴───────────────┘\n",
+              "</pre>\n"
+            ]
+          },
+          "metadata": {}
+        },
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "\u001b[1m Total params: \u001b[0m\u001b[38;5;34m11,169,089\u001b[0m (42.61 MB)\n"
+            ],
+            "text/html": [
+              "<pre style=\"white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace\"><span style=\"font-weight: bold\"> Total params: </span><span style=\"color: #00af00; text-decoration-color: #00af00\">11,169,089</span> (42.61 MB)\n",
+              "</pre>\n"
+            ]
+          },
+          "metadata": {}
+        },
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "\u001b[1m Trainable params: \u001b[0m\u001b[38;5;34m11,169,089\u001b[0m (42.61 MB)\n"
+            ],
+            "text/html": [
+              "<pre style=\"white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace\"><span style=\"font-weight: bold\"> Trainable params: </span><span style=\"color: #00af00; text-decoration-color: #00af00\">11,169,089</span> (42.61 MB)\n",
+              "</pre>\n"
+            ]
+          },
+          "metadata": {}
+        },
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "\u001b[1m Non-trainable params: \u001b[0m\u001b[38;5;34m0\u001b[0m (0.00 B)\n"
+            ],
+            "text/html": [
+              "<pre style=\"white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace\"><span style=\"font-weight: bold\"> Non-trainable params: </span><span style=\"color: #00af00; text-decoration-color: #00af00\">0</span> (0.00 B)\n",
+              "</pre>\n"
+            ]
+          },
+          "metadata": {}
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Epoch 1/10\n",
+            "\u001b[1m75/75\u001b[0m \u001b[32m━━━━━━━━━━━━━━━━━━━━\u001b[0m\u001b[37m\u001b[0m \u001b[1m17s\u001b[0m 126ms/step - accuracy: 0.9900 - loss: 0.0095 - val_accuracy: 1.0000 - val_loss: 2.0614e-33\n",
+            "Epoch 2/10\n",
+            "\u001b[1m75/75\u001b[0m \u001b[32m━━━━━━━━━━━━━━━━━━━━\u001b[0m\u001b[37m\u001b[0m \u001b[1m7s\u001b[0m 89ms/step - accuracy: 1.0000 - loss: 4.4038e-31 - val_accuracy: 1.0000 - val_loss: 1.8718e-33\n",
+            "Epoch 3/10\n",
+            "\u001b[1m75/75\u001b[0m \u001b[32m━━━━━━━━━━━━━━━━━━━━\u001b[0m\u001b[37m\u001b[0m \u001b[1m10s\u001b[0m 90ms/step - accuracy: 1.0000 - loss: 2.3563e-33 - val_accuracy: 1.0000 - val_loss: 1.8718e-33\n",
+            "Epoch 4/10\n",
+            "\u001b[1m75/75\u001b[0m \u001b[32m━━━━━━━━━━━━━━━━━━━━\u001b[0m\u001b[37m\u001b[0m \u001b[1m7s\u001b[0m 100ms/step - accuracy: 1.0000 - loss: 7.1477e-29 - val_accuracy: 1.0000 - val_loss: 1.8718e-33\n",
+            "Epoch 5/10\n",
+            "\u001b[1m75/75\u001b[0m \u001b[32m━━━━━━━━━━━━━━━━━━━━\u001b[0m\u001b[37m\u001b[0m \u001b[1m10s\u001b[0m 98ms/step - accuracy: 1.0000 - loss: 1.0928e-24 - val_accuracy: 1.0000 - val_loss: 1.8718e-33\n",
+            "Epoch 6/10\n",
+            "\u001b[1m75/75\u001b[0m \u001b[32m━━━━━━━━━━━━━━━━━━━━\u001b[0m\u001b[37m\u001b[0m \u001b[1m6s\u001b[0m 84ms/step - accuracy: 1.0000 - loss: 1.7083e-31 - val_accuracy: 1.0000 - val_loss: 1.8718e-33\n",
+            "Epoch 7/10\n",
+            "\u001b[1m75/75\u001b[0m \u001b[32m━━━━━━━━━━━━━━━━━━━━\u001b[0m\u001b[37m\u001b[0m \u001b[1m10s\u001b[0m 85ms/step - accuracy: 1.0000 - loss: 2.6108e-26 - val_accuracy: 1.0000 - val_loss: 1.8718e-33\n",
+            "Epoch 8/10\n",
+            "\u001b[1m75/75\u001b[0m \u001b[32m━━━━━━━━━━━━━━━━━━━━\u001b[0m\u001b[37m\u001b[0m \u001b[1m8s\u001b[0m 103ms/step - accuracy: 1.0000 - loss: 4.6616e-30 - val_accuracy: 1.0000 - val_loss: 1.8718e-33\n",
+            "Epoch 9/10\n",
+            "\u001b[1m75/75\u001b[0m \u001b[32m━━━━━━━━━━━━━━━━━━━━\u001b[0m\u001b[37m\u001b[0m \u001b[1m9s\u001b[0m 81ms/step - accuracy: 1.0000 - loss: 6.6694e-31 - val_accuracy: 1.0000 - val_loss: 1.8718e-33\n",
+            "Epoch 10/10\n",
+            "\u001b[1m75/75\u001b[0m \u001b[32m━━━━━━━━━━━━━━━━━━━━\u001b[0m\u001b[37m\u001b[0m \u001b[1m10s\u001b[0m 83ms/step - accuracy: 1.0000 - loss: 3.3775e-30 - val_accuracy: 1.0000 - val_loss: 1.8718e-33\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [],
+      "metadata": {
+        "id": "XQsGhODVFp9S"
+      },
+      "execution_count": null,
+      "outputs": []
+    }
+  ]
+}

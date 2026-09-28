@@ -65,7 +65,7 @@ def resolve_model_path(model_path: str) -> str:
             return candidate
     raise FileNotFoundError(f"Model file not found at: {model_path}")
 
-def get_yolo_model(model_path: str = DEFAULT_MODEL_PATH, role: str = "detect") -> YOLO:
+def get_yolo_model(model_path: str = DEFAULT_MODEL_PATH, role: str = "image") -> YOLO:
     """
     Load and cache the YOLO model from the specified path.
 
@@ -113,7 +113,7 @@ def open_video_writer(path: str, fps: float, size: Tuple[int, int]) -> Tuple[cv2
 
 # Pre-load default model
 try:
-    get_yolo_model(DEFAULT_MODEL_PATH)
+    get_yolo_model(DEFAULT_MODEL_PATH, role="image")
 except Exception as e:
     logger.error(f"Error during initial model load: {e}")
 
@@ -166,7 +166,8 @@ def draw_hud(
         cv2.putText(frame, "No vehicles detected", (28, y_pos), cv2.FONT_HERSHEY_SIMPLEX, 0.48, (160, 160, 160), 1, cv2.LINE_AA)
     else:
         for idx, (cat, cnt) in enumerate(sorted(counts.items(), key=lambda x: x[1], reverse=True)[:8]):
-            label_text = f"• {cat.capitalize()}: {cnt}"
+            # OpenCV Hershey fonts are ASCII-only ("•" would render as "??")
+            label_text = f"- {cat.capitalize()}: {cnt}"
             cv2.putText(frame, label_text, (28, y_pos), cv2.FONT_HERSHEY_SIMPLEX, 0.50, (230, 245, 255), 1, cv2.LINE_AA)
             y_pos += 24
 
@@ -188,7 +189,7 @@ def process_image(
         return None, pd.DataFrame(), "⚠️ Please upload an image first.", None
 
     start_time = time.time()
-    model = get_yolo_model(model_path)
+    model = get_yolo_model(model_path, role="image")
     class_names = model.names
 
     # Convert RGB to BGR for OpenCV / YOLO processing if needed
@@ -308,141 +309,155 @@ def process_video(
     }
     target_w, target_h = resolution_map.get(resolution_choice, (1280, 720))
 
-    # Number of frames to process
-    frames_to_process = total_source_frames
+    # Number of frames to process. Some containers/streams report 0 or -1 frames,
+    # in which case we simply read until the video ends.
+    frame_count_known = total_source_frames > 0
+    frames_to_process = total_source_frames if frame_count_known else float("inf")
     if max_frames_limit > 0:
-        frames_to_process = min(total_source_frames, max_frames_limit)
+        frames_to_process = min(frames_to_process, int(max_frames_limit))
 
     # Configure output file path
     timestamp_prefix = datetime.now().strftime("%Y%m%d_%H%M%S")
     out_video_filename = f"tracked_{resolution_choice.split()[0]}_{timestamp_prefix}.mp4"
     out_video_path = os.path.join(OUTPUTS_DIR, out_video_filename)
 
-    # Initialize OpenCV VideoWriter using 'mp4v' codec as required
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out_writer = cv2.VideoWriter(out_video_path, fourcc, source_fps, (target_w, target_h))
+    # Initialize OpenCV VideoWriter (H.264 if available, otherwise 'mp4v')
+    out_writer, codec_used = open_video_writer(out_video_path, source_fps, (target_w, target_h))
 
     if not out_writer.isOpened():
         cap.release()
         return None, None, pd.DataFrame(), f"❌ Failed to create video writer at: {out_video_path}", None, None
 
-    model = get_yolo_model(model_path)
+    # A fresh model instance per video run gives it a clean tracker: track IDs start
+    # from 1, the selected tracker algorithm is actually applied, and parallel runs
+    # (other users / the webcam tab) can't corrupt each other's tracks.
+    model = YOLO(resolve_model_path(model_path))
     class_names = model.names
 
     # Data collection for reports & metrics
     frame_idx = 0
     all_detections_log: List[Dict] = []
     unique_tracked_per_class: Dict[str, set] = {}
+    peak_per_class: Dict[str, int] = {}
     current_frame_counts: Dict[str, int] = {}
     total_detections_count = 0
     start_time = time.time()
 
     progress(0.0, desc="Starting Video Tracking Pipeline...")
 
-    while cap.isOpened() and frame_idx < frames_to_process:
-        ret, frame = cap.read()
-        if not ret or frame is None:
-            break
+    try:
+        while cap.isOpened() and frame_idx < frames_to_process:
+            ret, frame = cap.read()
+            if not ret or frame is None:
+                break
 
-        frame_idx += 1
-        t_frame_start = time.time()
+            frame_idx += 1
+            t_frame_start = time.time()
 
-        # Run YOLO Tracking with persistent tracking across frames
-        results = model.track(
-            source=frame,
-            persist=True,
-            conf=conf_threshold,
-            iou=iou_threshold,
-            tracker=tracker_config,
-            verbose=False
-        )
-        res = results[0]
+            # Run YOLO Tracking with persistent tracking across frames
+            results = model.track(
+                source=frame,
+                persist=True,
+                conf=conf_threshold,
+                iou=iou_threshold,
+                tracker=tracker_config,
+                verbose=False
+            )
+            res = results[0]
 
-        # Reset current frame counts
-        current_frame_counts.clear()
+            # Reset current frame counts
+            current_frame_counts.clear()
 
-        # Process detected & tracked bounding boxes
-        if res.boxes is not None and len(res.boxes) > 0:
-            boxes = res.boxes
-            for box in boxes:
-                cls_id = int(box.cls[0].item())
-                cls_name = class_names.get(cls_id, f"Class_{cls_id}")
-                conf = float(box.conf[0].item())
-                track_id = int(box.id[0].item()) if box.id is not None else None
-                xyxy = [round(float(c), 1) for c in box.xyxy[0].tolist()]
+            # Process detected & tracked bounding boxes
+            if res.boxes is not None and len(res.boxes) > 0:
+                boxes = res.boxes
+                for box in boxes:
+                    cls_id = int(box.cls[0].item())
+                    cls_name = class_names.get(cls_id, f"Class_{cls_id}")
+                    conf = float(box.conf[0].item())
+                    track_id = int(box.id[0].item()) if box.id is not None else None
+                    xyxy = [round(float(c), 1) for c in box.xyxy[0].tolist()]
 
-                current_frame_counts[cls_name] = current_frame_counts.get(cls_name, 0) + 1
-                total_detections_count += 1
+                    current_frame_counts[cls_name] = current_frame_counts.get(cls_name, 0) + 1
+                    total_detections_count += 1
 
-                # Track unique object IDs
-                if cls_name not in unique_tracked_per_class:
-                    unique_tracked_per_class[cls_name] = set()
-                if track_id is not None:
-                    unique_tracked_per_class[cls_name].add(track_id)
+                    # Track unique object IDs
+                    if track_id is not None:
+                        unique_tracked_per_class.setdefault(cls_name, set()).add(track_id)
 
-                all_detections_log.append({
-                    "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "Frame_Number": frame_idx,
-                    "Time_Seconds": round(frame_idx / source_fps, 2),
-                    "Track_ID": track_id if track_id is not None else "N/A",
-                    "Class_Name": cls_name,
-                    "Confidence": round(conf, 4),
-                    "BBox_X1": xyxy[0],
-                    "BBox_Y1": xyxy[1],
-                    "BBox_X2": xyxy[2],
-                    "BBox_Y2": xyxy[3]
-                })
+                    all_detections_log.append({
+                        "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "Frame_Number": frame_idx,
+                        "Time_Seconds": round(frame_idx / source_fps, 2),
+                        "Track_ID": track_id if track_id is not None else "N/A",
+                        "Class_Name": cls_name,
+                        "Confidence": round(conf, 4),
+                        "BBox_X1": xyxy[0],
+                        "BBox_Y1": xyxy[1],
+                        "BBox_X2": xyxy[2],
+                        "BBox_Y2": xyxy[3]
+                    })
 
-        # Draw YOLO annotations (bounding boxes & tracks)
-        annotated_frame = res.plot()
+            for cls_name, cnt in current_frame_counts.items():
+                peak_per_class[cls_name] = max(peak_per_class.get(cls_name, 0), cnt)
 
-        # Calculate current frame FPS
-        frame_fps = 1.0 / max(time.time() - t_frame_start, 0.001)
+            # Draw YOLO annotations (bounding boxes & tracks)
+            annotated_frame = res.plot()
 
-        # Draw Professional HUD banner
-        annotated_frame = draw_hud(
-            annotated_frame,
-            current_frame_counts,
-            total_objects=sum(current_frame_counts.values()),
-            fps=frame_fps,
-            title="PAKISTANI TRAFFIC TRACKER"
-        )
+            # Calculate current frame FPS
+            frame_fps = 1.0 / max(time.time() - t_frame_start, 0.001)
 
-        # Scale to selected target resolution
-        if (annotated_frame.shape[1], annotated_frame.shape[0]) != (target_w, target_h):
-            annotated_frame = cv2.resize(annotated_frame, (target_w, target_h), interpolation=cv2.INTER_LINEAR)
+            # Draw Professional HUD banner
+            annotated_frame = draw_hud(
+                annotated_frame,
+                current_frame_counts,
+                total_objects=sum(current_frame_counts.values()),
+                fps=frame_fps,
+                title="PAKISTANI TRAFFIC TRACKER"
+            )
 
-        # Write frame to output video
-        out_writer.write(annotated_frame)
+            # Scale to selected target resolution (aspect ratio preserved)
+            annotated_frame = letterbox_resize(annotated_frame, target_w, target_h)
 
-        # Update progress bar
-        if frame_idx % 5 == 0 or frame_idx == frames_to_process:
-            pct = frame_idx / frames_to_process
-            progress(pct, desc=f"Tracking Frame {frame_idx}/{frames_to_process} ({pct*100:.1f}%)")
+            # Write frame to output video
+            out_writer.write(annotated_frame)
 
-    # Cleanup resources
-    cap.release()
-    out_writer.release()
+            # Update progress bar
+            if frame_count_known or max_frames_limit > 0:
+                if frame_idx % 5 == 0 or frame_idx == frames_to_process:
+                    pct = frame_idx / frames_to_process
+                    progress(pct, desc=f"Tracking Frame {frame_idx}/{frames_to_process} ({pct*100:.1f}%)")
+            elif frame_idx % 25 == 0:
+                progress(None, desc=f"Tracking Frame {frame_idx}...")
+    finally:
+        # Always release resources, even if inference fails mid-video
+        cap.release()
+        out_writer.release()
+
     total_time_taken = time.time() - start_time
     avg_fps = frame_idx / max(total_time_taken, 0.001)
 
-    logger.info(f"Video processing finished. Processed {frame_idx} frames in {total_time_taken:.2f}s ({avg_fps:.1f} FPS).")
+    logger.info(
+        f"Video processing finished. Processed {frame_idx} frames in {total_time_taken:.2f}s "
+        f"({avg_fps:.1f} FPS, codec={codec_used})."
+    )
 
     # Generate Category Breakdown DataFrame
     category_summary_rows = []
     total_unique_objects = sum(len(ids) for ids in unique_tracked_per_class.values())
 
-    for cls_name, id_set in sorted(unique_tracked_per_class.items(), key=lambda x: len(x[1]), reverse=True):
-        count = len(id_set)
-        share = f"{(count / max(total_unique_objects, 1) * 100):.1f}%" if total_unique_objects > 0 else "0.0%"
+    for cls_name in sorted(peak_per_class, key=lambda c: len(unique_tracked_per_class.get(c, ())), reverse=True):
+        count = len(unique_tracked_per_class.get(cls_name, ()))
+        share = f"{(count / total_unique_objects * 100):.1f}%" if total_unique_objects > 0 else "0.0%"
         category_summary_rows.append({
             "Category": cls_name,
             "Unique Tracked Objects": count,
+            "Peak In One Frame": peak_per_class[cls_name],
             "Share (%)": share
         })
 
     if not category_summary_rows:
-        df_category_breakdown = pd.DataFrame(columns=["Category", "Unique Tracked Objects", "Share (%)"])
+        df_category_breakdown = pd.DataFrame(columns=["Category", "Unique Tracked Objects", "Peak In One Frame", "Share (%)"])
     else:
         df_category_breakdown = pd.DataFrame(category_summary_rows)
 
@@ -466,11 +481,11 @@ def process_video(
     summary_md = f"""
 ### 🎬 Video Processing & Tracking Completed!
 - **Target Resolution:** `{target_w}x{target_h}` ({resolution_choice})
-- **Frames Processed:** `{frame_idx}` / `{total_source_frames}`
+- **Frames Processed:** `{frame_idx}` / `{total_source_frames if frame_count_known else 'unknown'}`
 - **Average Processing Speed:** `{avg_fps:.1f} FPS` (Total Time: `{total_time_taken:.1f}s`)
 - **Total Unique Tracked Vehicles:** `{total_unique_objects}`
 - **Active Traffic Categories:** `{len(unique_tracked_per_class)}`
-- **Output Video Saved At:** `{out_video_filename}`
+- **Output Video Saved At:** `{out_video_filename}` (codec: `{codec_used}`)
 """
     return out_video_path, out_video_path, df_category_breakdown, summary_md, detailed_csv_path, summary_csv_path
 
@@ -483,7 +498,8 @@ def process_webcam_frame(
     frame: np.ndarray,
     model_path: str,
     conf_threshold: float,
-    iou_threshold: float
+    iou_threshold: float,
+    tracker_config: str = "bytetrack.yaml"
 ) -> Tuple[Optional[np.ndarray], pd.DataFrame, str]:
     """
     Process incoming real-time webcam frame with detection, tracking, HUD overlay,
@@ -498,7 +514,7 @@ def process_webcam_frame(
     fps = 1.0 / max(dt, 0.001)
     _webcam_tracker_state["fps"] = 0.8 * _webcam_tracker_state["fps"] + 0.2 * fps
 
-    model = get_yolo_model(model_path)
+    model = get_yolo_model(model_path, role="webcam")
     class_names = model.names
 
     # Convert RGB frame to BGR for OpenCV / YOLO
@@ -510,6 +526,7 @@ def process_webcam_frame(
         persist=True,
         conf=conf_threshold,
         iou=iou_threshold,
+        tracker=tracker_config,
         verbose=False
     )
     res = results[0]
@@ -661,6 +678,8 @@ model_choices = [
 existing_model_choices = [m for m in model_choices if os.path.exists(m)]
 if not existing_model_choices:
     existing_model_choices = [DEFAULT_MODEL_PATH]
+# (label, value) pairs: show just the file name instead of a long absolute path
+model_dropdown_choices = [(os.path.basename(m), m) for m in existing_model_choices]
 
 # ---------------------------------------------------------------------------
 # Construct Gradio Blocks Application
@@ -687,7 +706,7 @@ with gr.Blocks(title="Pakistani Traffic AI - YOLO Object Detection & Tracking") 
     with gr.Accordion("⚙️ Global Model & Inference Settings", open=False):
         with gr.Row():
             global_model_dropdown = gr.Dropdown(
-                choices=existing_model_choices,
+                choices=model_dropdown_choices,
                 value=existing_model_choices[0],
                 label="Select YOLO Model Weights (.pt)",
                 info="Default: Pakistani_Trafic_V2.pt (or custom checkpoint)"
@@ -763,7 +782,7 @@ with gr.Blocks(title="Pakistani Traffic AI - YOLO Object Detection & Tracking") 
                         )
 
                     video_counts_df = gr.DataFrame(
-                        headers=["Category", "Unique Tracked Objects", "Share (%)"],
+                        headers=["Category", "Unique Tracked Objects", "Peak In One Frame", "Share (%)"],
                         label="📊 Category-Wise Vehicle Breakdown",
                         interactive=False
                     )
@@ -896,7 +915,8 @@ with gr.Blocks(title="Pakistani Traffic AI - YOLO Object Detection & Tracking") 
                     webcam_stream_in,
                     global_model_dropdown,
                     webcam_conf_slider,
-                    webcam_iou_slider
+                    webcam_iou_slider,
+                    global_tracker_dropdown
                 ],
                 outputs=[
                     webcam_stream_out,

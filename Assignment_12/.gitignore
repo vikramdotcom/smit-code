@@ -1,11 +1,15 @@
 __pycache__/
 *.pyc
 .conda/
+.venv/
+venv/
 .ipynb_checkpoints/
+.vscode/
 outputs/
 runs/
+reports/
 *.avi
-reports/*.csv
-reports/*.log
+# test media used by model_testing.ipynb
+*.mp4
 !Pakistan_Traffic_Model.pt
 !Pakistani_Trafic_V2.pt

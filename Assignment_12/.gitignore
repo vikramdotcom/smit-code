@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.conda/
+.ipynb_checkpoints/
+outputs/
+runs/
+*.avi
+reports/*.csv
+reports/*.log
+!Pakistan_Traffic_Model.pt
+!Pakistani_Trafic_V2.pt
